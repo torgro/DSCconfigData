@@ -31,7 +31,7 @@ PROCESS
     foreach($dscNode in $Node.GetEnumerator())
     {
         Write-Verbose -Message "$f -  Removing item with name '$($dscNode.Name)'"
-        Save-DSCdata -Type DSCnode -object $dscNode -Delete
+        Save-DSCdata -Type DSCnode -object $node -Delete
     }
 }
 

@@ -1,7 +1,7 @@
 ﻿#build module script
 [cmdletbinding()]
 Param(
-    [string]$ModuleName = "AutoCompleteISE"
+    [string]$ModuleName = "DSCconfigData"
     ,
     [switch]$Major
     ,
@@ -9,7 +9,7 @@ Param(
     ,
     [switch]$LoadModule
 )
-cd C:\Users\Tore\Dropbox\SourceTreeRepros\AutoCompleteISE -ErrorAction SilentlyContinue
+cd C:\Users\Tore\Dropbox\SourceTreeRepros\DSCconfigData -ErrorAction SilentlyContinue
 $F = $MyInvocation.InvocationName
 
 $ModuleFileName = "$ModuleName.psm1"
@@ -32,6 +32,11 @@ $alias = Get-Content -Path "$PSScriptRoot\alias.ps1" -Raw -ErrorAction SilentlyC
 
 $ModuleName = (Get-ChildItem -Path "$PSScriptRoot\$ModuleFileName" -ErrorAction SilentlyContinue).BaseName
 Write-Verbose -Message "$f -  Modulename is $ModuleName"
+
+if(-not $ModuleName)
+{
+    throw "No modulename found"
+}
 
 $ExportedFunctions = New-Object System.Collections.ArrayList
 

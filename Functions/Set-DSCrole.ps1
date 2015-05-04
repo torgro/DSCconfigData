@@ -38,7 +38,17 @@ PROCESS
 
         if ($Attributes)
         { 
-            $DSCrole.Attributes += $Attributes
+            foreach($attrib in $Attributes)
+            {
+                if($attrib -in $DSCrole.Attributes.guid)
+                {
+                    Write-Error "Role already have an attribute with name '$attrib.Name'"
+                }
+                else
+                {
+                    $DSCrole.Attributes += $attrib
+                }
+            }            
         }
         Save-DSCdata -Type Role -object $DSCrole -Update
     }

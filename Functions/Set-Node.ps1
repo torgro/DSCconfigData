@@ -40,7 +40,17 @@ PROCESS
 
         if ($Attributes)
         { 
-            $DSCnode.Attributes += $Attributes
+            foreach($attrib in $Attributes)
+            {
+                if($attrib.guid -in $DSCnode.Attributes.guid)
+                {
+                    Write-Error "Node already have an attribute with name '$attrib.Name'"
+                }
+                else
+                {
+                    $DSCnode.Attributes += $attrib
+                }
+            }   
         }
 
         if ($Role)

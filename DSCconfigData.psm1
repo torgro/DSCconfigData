@@ -1,29 +1,58 @@
-﻿$Module = "DSCconfigData"
+﻿function Add-DSCattribute
+{ 
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    $Value
+    ,
+    [String]$Type
+    ,
+    [String]$Description
+)
+    $guid = [guid]::NewGuid().Guid
 
-$configData = @{
-    AllNodes = @()
-    NonNodeData=@{}
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$F - START"
+
+    $attrib = $null
+    $attrib = Get-DSCattribute -Name $Name
+
+    if($attrib)
+    { 
+        throw "Attribute with name '$Name' already exists"
     }
 
-$configData.AllNodes += @{NodeName = "*"}
+    $newAttribute = [pscustomobject]@{ 
+        Name = $Name
+        Value = $Value
+        Type = $Type
+        Guid = $guid
+        Description = $Description
+    }
 
-function Get-DSCConfigData
+    Save-DSCdata -Type Attribute -object $newAttribute
+
+    return $newAttribute
+}
+
+function Add-DSCnode
 {
 <#
 .SYNOPSIS 
-    Returns a configurationData object
+    Adds a node to the collection
 .Description
-    By default it contains a node called "*" and an empty NonNodeData element
-    
+    Specify the name of the node to add. By default it adds an Role property and sets the value to "".
+.Parameter Name
+    Name of the node to be added.
+.Parameter Name
+    The role of the node beeing added
 .EXAMPLE
-    Get-DSCConfigData 
-
-    Name                           Value
-    ----                           -----
-    AllNodes                       {System.Collections.Hashtable}
-    NonNodeData                    {}
+    Add-DSCnode -Name Server1
+.EXAMPLE
+    Add-DSCnode -Name Server1 -Role "Web"
 .Notes
-    NAME: Get-DSCConfigData 
+    NAME: Add-DSCnode 
     AUTHOR: Tore Groneng tore@firstpoint.no @toregroneng tore.groneng@gmail.com
     LASTEDIT: April 2014 
     KEYWORDS: DSC scripting and tooling
@@ -31,9 +60,21 @@ function Get-DSCConfigData
 #>
 [cmdletbinding()]
 Param(
-
+        [Parameter(Mandatory=$true)]
+        [string] $Name
+        ,
+        [String] $Role = ""
 )
-    $configData
+    if($configData.AllNodes.nodename -contains $Name)
+    {
+        throw "Node already exists"
+    }
+
+    $nodeHash = @{NodeName = $Name;
+                  Role = $Role;
+    }
+
+    $configData.AllNodes += $nodeHash
 }
 
 function Add-DSCproperty
@@ -119,25 +160,143 @@ Param(
 
 }
 
-function Set-AllowClearTextPassword
+function Add-DSCrole
+{ 
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    [string]$Description
+    ,
+    [pscustomobject[]]$Attributes
+)
+    $guid = [guid]::NewGuid().Guid
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+
+    $role = $null
+    $role = Get-DSCrole -Name "$Name"
+
+    if($role)
+    { 
+        throw "Role with name '$Name' already exists"
+    }
+
+    $newRole = [pscustomobject]@{ 
+        Name = $Name
+        Description = $Description
+        Attributes = $Attributes
+        Guid = $guid
+    }
+
+    Save-DSCdata -Type Role -object $newRole
+    
+    Write-Verbose -Message "$f - END"
+    return $newRole
+}
+
+function Add-Node
+{ 
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    [string]$Description
+    ,
+    [pscustomobject[]]$Attributes
+    ,
+    [pscustomobject]$Role
+)
+    $guid = [guid]::NewGuid().Guid
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+
+    $Node = $null
+    $Node = Get-Node -Name "$Name"
+
+    if($Node)
+    { 
+        throw "Node with name '$Name' already exists"
+    }
+
+    $newNode = [pscustomobject]@{ 
+        Name = $Name
+        Description = $Description
+        Attributes = $Attributes
+        Guid = $guid
+        Role = $Role
+    }
+
+    Save-DSCdata -Type DSCnode -object $newNode
+    
+    Write-Verbose -Message "$f - END"
+    return $newNode
+}
+
+function Get-DSCattribute
+{ 
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+)
+BEGIN
+{ 
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    $attributes = Get-DSCdata -Type Attribute
+}
+
+PROCESS
+{ 
+    if ($attributes)
+    { 
+        if ($Guid)
+        {
+            Write-Verbose -Message "$f -  Searching by GUID"
+            $attributes | where GUID -eq $Guid
+        }
+        else
+        {
+            Write-Verbose -Message "$f -  Searching by Name"
+            if(-not $Name)
+            {
+                $Name = "*"
+            }
+            $attributes | where Name -like "$Name"
+        }        
+    }
+    else
+    { 
+        Write-Verbose -Message "$f -  No attributes found"
+    }
+}
+
+END
+{ 
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Get-DSCConfigData
 {
 <#
 .SYNOPSIS 
-    Adds a property to allow clear text password in your DSC
+    Returns a configurationData object
 .Description
-    Can be targeted at the node level or for all nodes
-.Parameter AllNodes
-    If set, applies the clear text password for all nodes
-.Parameter NodeName
-    If set, applies the clear text password for a specific node
+    By default it contains a node called "*" and an empty NonNodeData element
+    
 .EXAMPLE
-    Set-AllowClearTextPassword -AllNodes
-    Enables clear text password for all nodes
-.EXAMPLE
-    Set-AllowClearTextPassword -NodeName Server1
-    Enables clear text passwords for the node Server1
+    Get-DSCConfigData 
+
+    Name                           Value
+    ----                           -----
+    AllNodes                       {System.Collections.Hashtable}
+    NonNodeData                    {}
 .Notes
-    NAME: Set-AllowClearTextPassword 
+    NAME: Get-DSCConfigData 
     AUTHOR: Tore Groneng tore@firstpoint.no @toregroneng tore.groneng@gmail.com
     LASTEDIT: April 2014 
     KEYWORDS: DSC scripting and tooling
@@ -145,35 +304,55 @@ function Set-AllowClearTextPassword
 #>
 [cmdletbinding()]
 Param(
-        [switch] $AllNodes
-        ,
-        [string] $NodeName = ""
+
 )
-    if($AllNodes -and $NodeName -ne "")
-    {
-        throw "Only specify a node or use the AllNode switch, not both"
-    }
-    
-    if($AllNodes -and $NodeName -eq "")
-    {
-        Write-Verbose "Setting cleartextpasswords allowed for all nodes"
-        $configData.AllNodes[0].add("PSDscAllowPlainTextPassword",$true)
+    $configData
+}
+
+function Get-DSCdata
+{ 
+[cmdletbinding()]
+Param(
+    [validateset("Attribute","DSCnode","Role","Configuration")]
+    [string]$Type
+)
+    $DataRoot = "$env:ProgramData\DSCconfig"
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+
+    if(-not(Test-Path -Path "$DataRoot\Attribute"))
+    { 
+        New-Item -Path "$DataRoot\Attribute" -ItemType directory        
     }
 
-    If($NodeName -ne "")
-    {
-        $node = $configData.AllNodes | Where {$_.NodeName -eq $NodeName}
-        Write-Verbose "Did we find a node?"
-        if($node -ne $null)
-        {
-            Write-Verbose "Setting cleartextpasswords allowed for node $NodeName"
-            $node.add("PSDscAllowPlainTextPassword",$true)
-        }
-        else
-        {
-            throw "Error - node $nodename not found"
-        }
+    if (-not(Test-Path -Path "$DataRoot\DSCnode"))
+    { 
+        New-Item -Path "$DataRoot\DSCnode" -ItemType directory
     }
+
+    if (-not(Test-Path -Path "$DataRoot\Role"))
+    { 
+        New-Item -Path "$DataRoot\Role" -ItemType directory
+    }
+
+    if (-not(Test-Path -Path "$DataRoot\Configuration"))
+    { 
+        New-Item -Path "$DataRoot\Configuration" -ItemType directory
+    }
+
+    $data = "$DataRoot\$Type\$Type.json"
+    if ((Test-Path -Path "$data"))
+    { 
+        [string]$json = Get-Content -Path $Data -Encoding UTF8
+        Write-Verbose -Message "$f -  Returning data for $Type at '$data'"
+        $json | ConvertFrom-Json
+    }
+    else
+    { 
+        Write-Verbose -Message "$f -  No data found"
+    }
+
+    Write-Verbose -Message "$f - END"
 }
 
 function Get-DSCNode
@@ -215,6 +394,143 @@ Param(
     }
 }
 
+function Get-DSCrole
+{
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+)
+BEGIN
+{ 
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    $roles = Get-DSCdata -Type Role
+}
+
+PROCESS
+{ 
+    if ($roles)
+    { 
+        if ($Guid)
+        {
+            Write-Verbose -Message "$f -  Searching by GUID"
+            $roles | where GUID -eq $Guid
+        }
+        else
+        {            
+            if(-not $Name)
+            {
+                $Name = "*"
+            }
+            Write-Verbose -Message "$f -  Searching by Name '$Name'"
+            $roles | where Name -like "$Name"
+        }        
+    }
+    else
+    { 
+        Write-Verbose -Message "$f -  No roles found"
+    }
+}
+
+END
+{ 
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Get-Node
+{
+[cmdletbinding()]
+Param(
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+)
+BEGIN
+{ 
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    $Nodes = Get-DSCdata -Type DSCnode
+}
+
+PROCESS
+{
+    if($Nodes)
+    {
+        if($Guid)
+        {
+            Write-Verbose -Message "$f -  Searching by GUID"
+            $Nodes | where guid -eq $Guid
+        }
+        else
+        {
+            if(-not $Name)
+            {
+                $Name = "*"
+            }
+            Write-Verbose -Message "$f -  Searching by Name '$Name'"
+            $Nodes | where Name -like "$Name"
+        }
+    }
+    else
+    { 
+        Write-Verbose -Message "$f -  No nodes found"
+    }
+}
+
+END
+{ 
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Remove-DSCattribute
+{
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByObject",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Attribute
+    ,
+    [Parameter(ParameterSetName="ByName")]
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [string]$guid
+)
+
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$F - START"
+
+    if ($Guid)
+    {         
+        $Attribute = Get-DSCattribute -Guid $Guid
+    }
+}
+
+PROCESS
+{
+    foreach($dscAttrib in $Attribute.GetEnumerator())
+    {
+        Write-Verbose -Message "$f -  Removing item with name '$($dscAttrib.Name)'"
+        Save-DSCdata -Type Attribute -object $dscAttrib -Delete
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
 function Remove-DSCnode
 {
 <#
@@ -240,23 +556,206 @@ Param(
     $configData.allnodes = $configData.allnodes | where {$_.Nodename -notcontains $name}
 }
 
-function Add-DSCnode
+
+function Remove-DSCrole
+{
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByObject",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Role
+    ,
+    [Parameter(ParameterSetName="ByName")]
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [string]$guid
+)
+
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$F - START"
+
+    if ($Guid)
+    {         
+        $Role = Get-DSCrole -Guid $Guid
+    }
+}
+
+PROCESS
+{
+    foreach($dscrole in $role.GetEnumerator())
+    {
+        Write-Verbose -Message "$f -  Removing item with name '$($dscrole.Name)'"
+        Save-DSCdata -Type Role -object $dscrole -Delete
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Remove-Node
+{
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByObject",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Node
+    ,
+    [Parameter(ParameterSetName="ByName")]
+    [string]$Name
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [string]$guid
+)
+
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$F - START"
+
+    if ($Guid)
+    {         
+        $Node = Get-Node -Guid $Guid
+    }
+}
+
+PROCESS
+{
+    foreach($dscNode in $Node.GetEnumerator())
+    {
+        Write-Verbose -Message "$f -  Removing item with name '$($dscNode.Name)'"
+        Save-DSCdata -Type DSCnode -object $dscNode -Delete
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Save-DSCdata
+{
+[cmdletbinding()]
+Param(
+    [validateset("Attribute","DSCnode","Role","Configuration")]
+    [string]$Type
+    ,
+    $object
+    ,
+    [switch]$Update
+    ,
+    [switch]$Delete
+)
+    $DataRoot = "$env:ProgramData\DSCconfig"
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+
+    if(-not (Test-Path -Path $DataRoot))
+    { 
+        Write-Verbose -Message "$F -  Creating base directory structure"
+        $null = Get-DSCdata -Type $Type
+    }
+
+    Write-Verbose -Message "$f -  Getting stored data of type $Type"
+    $TypeData = Get-DSCdata -Type $Type
+
+    $DataArray = New-Object -TypeName System.Collections.ArrayList
+    Write-Verbose -Message "$f -  Adding stored items to array"
+    foreach($dataitem in $TypeData)
+    {
+        [void]$DataArray.Add($dataitem)
+    }
+    
+    if($Update)
+    {
+        Write-Verbose -Message "$f -  In update mode for item with GUID $($object.GUID)"
+        
+        $UpdateItem = $DataArray | where GUID -eq $object.GUID
+        
+        if(-not $UpdateItem)
+        {
+            throw "Unable to DELETE item $($object.Name) was not found"
+        }
+
+        Write-Verbose -Message "$f -  Updating item"
+        $i = 0
+        foreach($item in (Get-DSCdata -Type $Type))
+        {
+            if($item.guid -eq $object.guid)
+            {
+                Write-Verbose -Message "$f-  Found match - new type is $($object.type)"
+                $DataArray[$i] = $object
+            }
+            $i++
+        }       
+    }
+
+    if($Delete)
+    {
+        Write-Verbose -Message "$f -  In DELETE mode for item with GUID $($object.GUID)"
+
+        $DeleteItem = $DataArray | where GUID -eq $object.GUID
+
+        if(-not $DeleteItem)
+        {
+            throw "Unable to DELETE item $($object.Name) was not found"
+        }
+
+        Write-Verbose -Message "$f -  Deleting item"
+
+        $i = 0
+        foreach($item in (Get-DSCdata -Type $Type))
+        {
+            if($item.guid -eq $object.guid)
+            {
+                Write-Verbose -Message "$f-  Found match - deleting object with name $($object.Name)"
+                [void]$DataArray.RemoveAt($i)
+            }
+            $i++
+        }       
+    }
+
+    if(-not $Update -and -not $Delete)
+    {
+        Write-Verbose -Message "$f -  Adding new item to array"
+        [void]$DataArray.Add($object)
+    }   
+
+    Write-Verbose -Message "$f -  Converting array of items to JSON and saving to '$DataRoot\$Type\$Type.json'"
+    $DataArray | ConvertTo-Json | Set-Content -Path "$DataRoot\$Type\$Type.json"
+    Write-Verbose -Message "$f -  Saved to $DataRoot\$Type\$Type.json"
+    Write-Verbose -Message "$F - END"
+}
+
+function Set-AllowClearTextPassword
 {
 <#
 .SYNOPSIS 
-    Adds a node to the collection
+    Adds a property to allow clear text password in your DSC
 .Description
-    Specify the name of the node to add. By default it adds an Role property and sets the value to "".
-.Parameter Name
-    Name of the node to be added.
-.Parameter Name
-    The role of the node beeing added
+    Can be targeted at the node level or for all nodes
+.Parameter AllNodes
+    If set, applies the clear text password for all nodes
+.Parameter NodeName
+    If set, applies the clear text password for a specific node
 .EXAMPLE
-    Add-DSCnode -Name Server1
+    Set-AllowClearTextPassword -AllNodes
+    Enables clear text password for all nodes
 .EXAMPLE
-    Add-DSCnode -Name Server1 -Role "Web"
+    Set-AllowClearTextPassword -NodeName Server1
+    Enables clear text passwords for the node Server1
 .Notes
-    NAME: Add-DSCnode 
+    NAME: Set-AllowClearTextPassword 
     AUTHOR: Tore Groneng tore@firstpoint.no @toregroneng tore.groneng@gmail.com
     LASTEDIT: April 2014 
     KEYWORDS: DSC scripting and tooling
@@ -264,21 +763,213 @@ function Add-DSCnode
 #>
 [cmdletbinding()]
 Param(
-        [Parameter(Mandatory=$true)]
-        [string] $Name
+        [Parameter(ParameterSetName="AllNodes")]
+        [switch] $AllNodes
         ,
-        [String] $Role = ""
+        [Parameter(ParameterSetName="SingleNode")]
+        [string] $NodeName = ""
+        ,
+        [switch] $Disabled
 )
-    if($configData.AllNodes.nodename -contains $Name)
+    [bool]$ClearTextAllowed = $true
+    if($Disabled)
     {
-        throw "Node already exists"
+        $ClearTextAllowed = $false
+    }
+    
+    if($AllNodes)
+    {
+        Write-Verbose "Setting cleartextpasswords allowed for all nodes"
+        $configData.AllNodes[0].add("PSDscAllowPlainTextPassword", $ClearTextAllowed)
     }
 
-    $nodeHash = @{NodeName = $Name;
-                  Role = $Role;
+    If($NodeName -ne "")
+    {
+        Write-Verbose -Message "Searhing for node with name '$NodeName'"
+        $node = $configData.AllNodes | Where {$_.NodeName -eq $NodeName}
+        Write-Verbose "Did we find a node?"
+        if($node -ne $null)
+        {
+            Write-Verbose "Setting cleartextpasswords allowed for node $NodeName"
+            $node.add("PSDscAllowPlainTextPassword", $ClearTextAllowed)
+        }
+        else
+        {
+            throw "Error - node $nodename not found"
+        }
     }
-
-    $configData.AllNodes += $nodeHash
 }
 
-Export-ModuleMember -Function * -Variable ConfigData
+
+function Set-DSCattribute
+{ 
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByObject",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Attribute
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+    ,
+    [String]$Type
+    ,
+    [String]$Description
+)
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    if ($Guid)
+    { 
+        $Attribute = Get-DSCattribute -Guid $Guid
+    }
+}
+
+PROCESS
+{
+    foreach($Attrib in $Attribute)
+    {
+        Write-Verbose -Message "$f -  Processing item $($Attrib.Name)"
+        if($Type)
+        {
+            $Attrib.Type = $Type
+        }
+
+        if($Description)
+        {
+            $Attrib.Description = $Description
+        }
+        Save-DSCdata -Type Attribute -Update -object $Attrib
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Set-DSCrole
+{ 
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByName",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Role
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+    ,
+    [string]$Description
+    ,
+    [pscustomobject[]]$Attributes
+)
+
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    if($Guid)
+    {
+        $Role = Get-DSCrole -Guid $Guid
+    }
+}
+
+PROCESS
+{ 
+    foreach ($DSCrole in $Role)
+    { 
+        Write-Verbose -Message "$f -  Processing item $($DSCrole.Name)"
+        if ($Description)
+        { 
+            $DSCrole.Description = $Description
+        }
+
+        if ($Attributes)
+        { 
+            $DSCrole.Attributes += $Attributes
+        }
+        Save-DSCdata -Type Role -object $DSCrole -Update
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
+function Set-Node
+{ 
+[cmdletbinding()]
+Param(
+    [Parameter(
+        ParameterSetName="ByName",
+        ValueFromPipeline=$true
+    )]
+    [pscustomobject[]]$Node
+    ,
+    [Parameter(ParameterSetName="ByGUID")]
+    [String]$Guid
+    ,
+    [string]$Description
+    ,
+    [pscustomobject[]]$Attributes
+    ,
+    [pscustomobject]$Role
+)
+
+BEGIN
+{
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$f - START"
+    if($Guid)
+    {
+        $Node = Get-Node -Guid $Guid
+    }
+}
+
+PROCESS
+{ 
+    foreach ($DSCnode in $Node)
+    { 
+        Write-Verbose -Message "$f -  Processing item '$($DSCnode.Name)'"
+        if ($Description)
+        { 
+            $DSCnode.Description = $Description
+        }
+
+        if ($Attributes)
+        { 
+            $DSCnode.Attributes += $Attributes
+        }
+
+        if ($Role)
+        {
+            $DSCnode.Role = $Role
+        }
+        Save-DSCdata -Type DSCnode -object $DSCnode -Update
+    }
+}
+
+END
+{
+    Write-Verbose -Message "$f - END"
+}
+}
+
+$Module = "DSCconfigData"
+
+$configData = @{
+    AllNodes = @()
+    NonNodeData=@{}
+    }
+
+$configData.AllNodes += @{NodeName = "*"}
+
+
