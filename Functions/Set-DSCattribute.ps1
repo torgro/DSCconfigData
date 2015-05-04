@@ -2,9 +2,8 @@
 { 
 [cmdletbinding()]
 Param(
-    
     [Parameter(
-        ParameterSetName="ByName",
+        ParameterSetName="ByObject",
         ValueFromPipeline=$true
     )]
     [pscustomobject[]]$Attribute
@@ -20,6 +19,10 @@ BEGIN
 {
     $f = $MyInvocation.InvocationName
     Write-Verbose -Message "$f - START"
+    if ($Guid)
+    { 
+        $Attribute = Get-DSCattribute -Guid $Guid
+    }
 }
 
 PROCESS

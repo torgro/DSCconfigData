@@ -11,9 +11,9 @@ Param(
     [String]$Description
 )
     $guid = [guid]::NewGuid().Guid
-    $f = $MyInvocation.InvocationName
 
-    Write-Verbose -Message "$f -  GUID - $guid"
+    $f = $MyInvocation.InvocationName
+    Write-Verbose -Message "$F - START"
 
     $attrib = $null
     $attrib = Get-DSCattribute -Name $Name

@@ -8,6 +8,8 @@ Param(
     $object
     ,
     [switch]$Update
+    ,
+    [switch]$Delete
 )
     $DataRoot = "$env:ProgramData\DSCconfig"
     $f = $MyInvocation.InvocationName
@@ -37,7 +39,7 @@ Param(
         
         if(-not $UpdateItem)
         {
-            throw "Unable to update item $($object.Name) was not found"
+            throw "Unable to DELETE item $($object.Name) was not found"
         }
 
         Write-Verbose -Message "$f -  Updating item"
@@ -52,9 +54,35 @@ Param(
             $i++
         }       
     }
-    else
+
+    if($Delete)
     {
-         Write-Verbose -Message "$f -  Adding new item to array"
+        Write-Verbose -Message "$f -  In DELETE mode for item with GUID $($object.GUID)"
+
+        $DeleteItem = $DataArray | where GUID -eq $object.GUID
+
+        if(-not $DeleteItem)
+        {
+            throw "Unable to DELETE item $($object.Name) was not found"
+        }
+
+        Write-Verbose -Message "$f -  Deleting item"
+
+        $i = 0
+        foreach($item in (Get-DSCdata -Type $Type))
+        {
+            if($item.guid -eq $object.guid)
+            {
+                Write-Verbose -Message "$f-  Found match - deleting object with name $($object.Name)"
+                [void]$DataArray.RemoveAt($i)
+            }
+            $i++
+        }       
+    }
+
+    if(-not $Update -and -not $Delete)
+    {
+        Write-Verbose -Message "$f -  Adding new item to array"
         [void]$DataArray.Add($object)
     }   
 

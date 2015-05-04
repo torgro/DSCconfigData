@@ -1,4 +1,4 @@
-﻿function Add-DSCrole
+﻿function Add-Node
 { 
 [cmdletbinding()]
 Param(
@@ -7,28 +7,31 @@ Param(
     [string]$Description
     ,
     [pscustomobject[]]$Attributes
+    ,
+    [pscustomobject]$Role
 )
     $guid = [guid]::NewGuid().Guid
     $f = $MyInvocation.InvocationName
     Write-Verbose -Message "$f - START"
 
-    $role = $null
-    $role = Get-DSCrole -Name "$Name"
+    $Node = $null
+    $Node = Get-Node -Name "$Name"
 
-    if($role)
+    if($Node)
     { 
-        throw "Role with name '$Name' already exists"
+        throw "Node with name '$Name' already exists"
     }
 
-    $newRole = [pscustomobject]@{ 
+    $newNode = [pscustomobject]@{ 
         Name = $Name
         Description = $Description
         Attributes = $Attributes
         Guid = $guid
+        Role = $Role
     }
 
-    Save-DSCdata -Type Role -object $newRole
+    Save-DSCdata -Type DSCnode -object $newNode
     
     Write-Verbose -Message "$f - END"
-    return $newRole
+    return $newNode
 }

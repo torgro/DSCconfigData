@@ -1,4 +1,4 @@
-﻿function Get-DSCrole
+﻿function Get-Node
 {
 [cmdletbinding()]
 Param(
@@ -11,31 +11,31 @@ BEGIN
 { 
     $f = $MyInvocation.InvocationName
     Write-Verbose -Message "$f - START"
-    $roles = Get-DSCdata -Type Role
+    $Nodes = Get-DSCdata -Type DSCnode
 }
 
 PROCESS
-{ 
-    if ($roles)
-    { 
-        if ($Guid)
+{
+    if($Nodes)
+    {
+        if($Guid)
         {
             Write-Verbose -Message "$f -  Searching by GUID"
-            $roles | where GUID -eq $Guid
+            $Nodes | where guid -eq $Guid
         }
         else
-        {            
+        {
             if(-not $Name)
             {
                 $Name = "*"
             }
             Write-Verbose -Message "$f -  Searching by Name '$Name'"
-            $roles | where Name -like "$Name"
-        }        
+            $Nodes | where Name -like "$Name"
+        }
     }
     else
     { 
-        Write-Verbose -Message "$f -  No roles found"
+        Write-Verbose -Message "$f -  No nodes found"
     }
 }
 
