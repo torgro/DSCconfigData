@@ -12,10 +12,10 @@
 RootModule = 'DSCconfigData.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.0.1.0'
+ModuleVersion = '1.0.4.0'
 
 # ID used to uniquely identify this module
-GUID = 'f1ded0bd-574b-4ef7-8c5b-6189f450ec5b'
+GUID = '4e160395-50c5-4f9d-9b79-163513257739'
 
 # Author of this module
 Author = 'Tore Grøneng @toregroneng tore@firstpoint.no'

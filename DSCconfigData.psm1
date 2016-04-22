@@ -345,6 +345,11 @@ Param(
     { 
         [string]$json = Get-Content -Path $Data -Encoding UTF8
         Write-Verbose -Message "$f -  Returning data for $Type at '$data'"
+        if(-not $json)
+        {
+            Write-Verbose -Message "$f -  Unable to find content in file '$data', no items saved to disk"
+            return $null
+        }
         $json | ConvertFrom-Json
     }
     else
@@ -633,7 +638,7 @@ PROCESS
     foreach($dscNode in $Node.GetEnumerator())
     {
         Write-Verbose -Message "$f -  Removing item with name '$($dscNode.Name)'"
-        Save-DSCdata -Type DSCnode -object $dscNode -Delete
+        Save-DSCdata -Type DSCnode -object $node -Delete
     }
 }
 
@@ -713,16 +718,7 @@ Param(
 
         Write-Verbose -Message "$f -  Deleting item"
 
-        $i = 0
-        foreach($item in (Get-DSCdata -Type $Type))
-        {
-            if($item.guid -eq $object.guid)
-            {
-                Write-Verbose -Message "$f-  Found match - deleting object with name $($object.Name)"
-                [void]$DataArray.RemoveAt($i)
-            }
-            $i++
-        }       
+        $DataArray = $DataArray | where GUID -ne $object.GUID
     }
 
     if(-not $Update -and -not $Delete)
@@ -731,8 +727,10 @@ Param(
         [void]$DataArray.Add($object)
     }   
 
-    Write-Verbose -Message "$f -  Converting array of items to JSON and saving to '$DataRoot\$Type\$Type.json'"
-    $DataArray | ConvertTo-Json | Set-Content -Path "$DataRoot\$Type\$Type.json"
+    Write-Verbose -Message "$f -  Converting array of items to JSON"
+    $jsonContent = $DataArray | ConvertTo-Json
+    Write-Verbose -Message "$f -  Saving to '$DataRoot\$Type\$Type.json'"
+    Set-Content -Path "$DataRoot\$Type\$Type.json" -Value $jsonContent
     Write-Verbose -Message "$f -  Saved to $DataRoot\$Type\$Type.json"
     Write-Verbose -Message "$F - END"
 }
@@ -892,7 +890,17 @@ PROCESS
 
         if ($Attributes)
         { 
-            $DSCrole.Attributes += $Attributes
+            foreach($attrib in $Attributes)
+            {
+                if($attrib -in $DSCrole.Attributes.guid)
+                {
+                    Write-Error "Role already have an attribute with name '$attrib.Name'"
+                }
+                else
+                {
+                    $DSCrole.Attributes += $attrib
+                }
+            }            
         }
         Save-DSCdata -Type Role -object $DSCrole -Update
     }
@@ -946,7 +954,17 @@ PROCESS
 
         if ($Attributes)
         { 
-            $DSCnode.Attributes += $Attributes
+            foreach($attrib in $Attributes)
+            {
+                if($attrib.guid -in $DSCnode.Attributes.guid)
+                {
+                    Write-Error "Node already have an attribute with name '$attrib.Name'"
+                }
+                else
+                {
+                    $DSCnode.Attributes += $attrib
+                }
+            }   
         }
 
         if ($Role)

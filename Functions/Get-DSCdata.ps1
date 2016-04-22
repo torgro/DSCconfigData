@@ -34,6 +34,11 @@ Param(
     { 
         [string]$json = Get-Content -Path $Data -Encoding UTF8
         Write-Verbose -Message "$f -  Returning data for $Type at '$data'"
+        if(-not $json)
+        {
+            Write-Verbose -Message "$f -  Unable to find content in file '$data', no items saved to disk"
+            return $null
+        }
         $json | ConvertFrom-Json
     }
     else

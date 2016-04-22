@@ -68,16 +68,7 @@ Param(
 
         Write-Verbose -Message "$f -  Deleting item"
 
-        $i = 0
-        foreach($item in (Get-DSCdata -Type $Type))
-        {
-            if($item.guid -eq $object.guid)
-            {
-                Write-Verbose -Message "$f-  Found match - deleting object with name $($object.Name)"
-                [void]$DataArray.RemoveAt($i)
-            }
-            $i++
-        }       
+        $DataArray = $DataArray | where GUID -ne $object.GUID
     }
 
     if(-not $Update -and -not $Delete)
@@ -86,8 +77,10 @@ Param(
         [void]$DataArray.Add($object)
     }   
 
-    Write-Verbose -Message "$f -  Converting array of items to JSON and saving to '$DataRoot\$Type\$Type.json'"
-    $DataArray | ConvertTo-Json | Set-Content -Path "$DataRoot\$Type\$Type.json"
+    Write-Verbose -Message "$f -  Converting array of items to JSON"
+    $jsonContent = $DataArray | ConvertTo-Json
+    Write-Verbose -Message "$f -  Saving to '$DataRoot\$Type\$Type.json'"
+    Set-Content -Path "$DataRoot\$Type\$Type.json" -Value $jsonContent
     Write-Verbose -Message "$f -  Saved to $DataRoot\$Type\$Type.json"
     Write-Verbose -Message "$F - END"
 }
